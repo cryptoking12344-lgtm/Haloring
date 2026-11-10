@@ -29,12 +29,23 @@ class MainActivity : Activity() {
     private lateinit var statusPill: TextView
     private lateinit var setupCard: LinearLayout
     private lateinit var setupRows: LinearLayout
-    private lateinit var hero: RingView
     private lateinit var missedDot: View
+    /** A live ring preview. shape = also follows the size and position sliders. */
+    private class Demo(val ring: RingView, val shape: Boolean)
+
+    private val demos = ArrayList<Demo>()
     private val chips = ArrayList<TextView>()
     private val swatches = ArrayList<View>()
 
     private val cameraPreview = Runnable { RingService.instance?.preview() }
+
+    /** Keeps every preview moving while the screen is open. */
+    private val ticker = object : Runnable {
+        override fun run() {
+            for (d in demos) d.ring.invalidate()
+            handler.postDelayed(this, 33L)
+        }
+    }
 
     private fun dp(v: Float): Int = Ui.dp(this, v)
 
@@ -68,6 +79,13 @@ class MainActivity : Activity() {
         refreshSetup()
         updateHero()
         handler.post { paintSwatches() }
+        handler.removeCallbacks(ticker)
+        handler.post(ticker)
+    }
+
+    override fun onPause() {
+        handler.removeCallbacks(ticker)
+        super.onPause()
     }
 
     // ---------------------------------------------------------------- header
@@ -95,14 +113,18 @@ class MainActivity : Activity() {
     private fun buildHero(): View {
         val card = Ui.card(this)
         card.setPadding(dp(10f), dp(10f), dp(10f), dp(10f))
+        card.addView(demoStage(150f, false))
+        return card
+    }
 
+    /** A black panel with a mock camera hole and a live ring around it. */
+    private fun demoStage(heightDp: Float, shape: Boolean): View {
         val stage = FrameLayout(this)
         stage.background = Ui.shape(0xFF000000.toInt(), dp(18f).toFloat())
 
-        hero = RingView(this)
-        stage.addView(hero, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, dp(150f)))
+        val ring = RingView(this)
+        stage.addView(ring, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, dp(heightDp)))
 
-        // The camera hole the ring wraps around.
         val lens = View(this)
         val lensBg = GradientDrawable()
         lensBg.shape = GradientDrawable.OVAL
@@ -112,22 +134,42 @@ class MainActivity : Activity() {
         lensLp.gravity = Gravity.CENTER
         stage.addView(lens, lensLp)
 
-        card.addView(stage)
-        return card
+        val lp = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+        lp.bottomMargin = dp(12f)
+        stage.layoutParams = lp
+
+        demos.add(Demo(ring, shape))
+        return stage
     }
 
     private fun updateHero() {
+        val density = resources.displayMetrics.density
         val thick = sp.getInt(Prefs.THICK, Prefs.DEF_THICK)
         val speed = sp.getInt(Prefs.SPEED, Prefs.DEF_SPEED)
-        hero.configure(
-            sp.getInt(Prefs.COLOR, Prefs.DEF_COLOR),
-            dp(24f).toFloat(),
-            dp(2f) + thick * 0.09f * resources.displayMetrics.density,
-            4000L - speed * 35L,
-            sp.getInt(Prefs.STYLE, RingView.SWIRL),
-            dp(18f).toFloat()
-        )
-        hero.setAnimating(true)
+        val size = sp.getInt(Prefs.SIZE, Prefs.DEF_SIZE)
+        val dx = sp.getInt(Prefs.DX, Prefs.DEF_DX)
+        val dy = sp.getInt(Prefs.DY, Prefs.DEF_DY)
+        val color = sp.getInt(Prefs.COLOR, Prefs.DEF_COLOR)
+        val style = sp.getInt(Prefs.STYLE, RingView.SWIRL)
+        val period = 4000L - speed * 35L
+
+        for (d in demos) {
+            if (d.shape) {
+                // Same maths as the real ring, around the mock camera hole.
+                var radius = (13f + (size - 20) / 2f) * density
+                if (radius < 4f * density) radius = 4f * density
+                d.ring.configure(color, radius, (thick + 2) / 2f * density, period, style, 11f * density)
+                d.ring.translationX = (dx - 50) * 0.5f * density
+                d.ring.translationY = (dy - 50) * 0.5f * density
+            } else {
+                d.ring.configure(
+                    color, 24f * density, (2f + thick * 0.09f) * density, period, style, 18f * density
+                )
+            }
+            d.ring.setAnimating(true)
+        }
     }
 
     // ----------------------------------------------------------------- setup
@@ -209,6 +251,7 @@ class MainActivity : Activity() {
     private fun buildAnimation(): View {
         val card = Ui.card(this)
         card.addView(Ui.cardTitle(this, "Animation"))
+        card.addView(demoStage(110f, false))
 
         val strip = LinearLayout(this)
         strip.orientation = LinearLayout.HORIZONTAL
@@ -245,6 +288,7 @@ class MainActivity : Activity() {
     private fun buildColour(): View {
         val card = Ui.card(this)
         card.addView(Ui.cardTitle(this, "Default colour"))
+        card.addView(demoStage(110f, false))
 
         swatches.clear()
         for (r in 0 until 2) {
@@ -321,7 +365,8 @@ class MainActivity : Activity() {
     private fun buildShape(): View {
         val card = Ui.card(this)
         card.addView(Ui.cardTitle(this, "Size and position"))
-        val note = Ui.text(this, "The ring shows on your camera while you adjust.", 13f, Ui.DIM)
+        card.addView(demoStage(150f, true))
+        val note = Ui.text(this, "The ring also shows on your real camera when you let go.", 13f, Ui.DIM)
         note.setPadding(dp(2f), 0, 0, dp(2f))
         card.addView(note)
 

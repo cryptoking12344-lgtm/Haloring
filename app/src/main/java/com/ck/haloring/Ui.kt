@@ -120,8 +120,12 @@ object Ui {
         row.addView(texts, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
 
         if (trailing != null) {
+            // Keep a fixed size if the control has one (a bare View would otherwise
+            // stretch across the row and squeeze the text out).
+            val given = trailing.layoutParams
             val lp = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                given?.width ?: LinearLayout.LayoutParams.WRAP_CONTENT,
+                given?.height ?: LinearLayout.LayoutParams.WRAP_CONTENT
             )
             lp.leftMargin = dp(c, 12f)
             row.addView(trailing, lp)
