@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Halo Ring</string>
+    <string name="acc_desc">Draws the notification ring around the camera hole. It does not read anything on your screen.</string>
+</resources>
