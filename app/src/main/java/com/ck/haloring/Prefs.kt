@@ -17,6 +17,17 @@ object Prefs {
     const val APPS = "apps"
     const val MISSED = "missed"
     const val MISSED_COLOR = "missed_color"
+    const val DURATION = "duration"
+
+    /** How long the ring animates per notification. 0 = until swiped away or unlocked. */
+    val DURATION_MS = longArrayOf(10_000L, 30_000L, 60_000L, 300_000L, 0L)
+    val DURATION_NAMES = arrayOf("10 sec", "30 sec", "1 min", "5 min", "Until seen")
+    const val DEF_DURATION = 4
+
+    fun durationMs(c: Context): Long {
+        val i = sp(c).getInt(DURATION, DEF_DURATION)
+        return DURATION_MS[if (i in DURATION_MS.indices) i else DEF_DURATION]
+    }
 
     const val DEF_SIZE = 28
     const val DEF_THICK = 6

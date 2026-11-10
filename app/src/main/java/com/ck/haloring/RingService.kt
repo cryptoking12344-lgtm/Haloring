@@ -37,7 +37,6 @@ class RingService : AccessibilityService() {
         @Volatile
         var instance: RingService? = null
 
-        const val FIRST_BURST_MS = 10_000L
         const val REPEAT_BURST_MS = 4_000L
         const val REPEAT_EVERY_MS = 120_000L
         const val REPEAT_WINDOW_MS = 60L * 60L * 1000L
@@ -63,6 +62,11 @@ class RingService : AccessibilityService() {
     /** True when something arrived while the screen was lit but locked (e.g. a missed call). */
     private var deferred = false
 
+    /** True when the screen is going off because we asked it to. */
+    private var selfLock = false
+
+    private fun untilSeen(): Boolean = Prefs.durationMs(this) <= 0L
+
     private val stopAnim = Runnable {
         view?.setAnimating(false)
         releaseAnimLock()
@@ -78,13 +82,17 @@ class RingService : AccessibilityService() {
                         updateAod(true)
                     } else {
                         val act = RingActivity.current
+                        val ours = selfLock
+                        selfLock = false
                         if (act != null) {
                             act.finish()
-                        } else if (deferred && !Pending.isEmpty()) {
+                            // Power button pressed while the ring was showing: treat as dismissed.
+                            if (!ours && untilSeen()) seen()
+                        } else if (!Pending.isEmpty() && (deferred || untilSeen())) {
                             handler.postDelayed({
-                                if (deferred && !Pending.isEmpty() && !pm.isInteractive) {
+                                if (!Pending.isEmpty() && !pm.isInteractive && RingActivity.current == null) {
                                     lastNewAt = SystemClock.elapsedRealtime()
-                                    burst(FIRST_BURST_MS)
+                                    burst(Prefs.durationMs(this@RingService))
                                 }
                             }, 1_200L)
                         }
@@ -163,7 +171,7 @@ class RingService : AccessibilityService() {
     fun onNewNotification() {
         handler.post {
             lastNewAt = SystemClock.elapsedRealtime()
-            if (aodMode()) updateAod(true) else burst(FIRST_BURST_MS)
+            if (aodMode()) updateAod(true) else burst(Prefs.durationMs(this))
         }
     }
 
@@ -177,7 +185,10 @@ class RingService : AccessibilityService() {
             if (Pending.isEmpty()) {
                 cancelRepeat()
                 hideOverlay()
-                RingActivity.current?.finish()
+                RingActivity.current?.endNow()
+            } else {
+                // Something is still unseen: switch to its colour and icon.
+                RingActivity.current?.refresh()
             }
         }
     }
@@ -203,7 +214,8 @@ class RingService : AccessibilityService() {
         if (Pending.isEmpty()) return
         if (pm.isInteractive && RingActivity.current == null) return
         deferred = false
-        selfWakeUntil = SystemClock.elapsedRealtime() + ms + 2_500L
+        // ms <= 0 means "keep going until seen".
+        selfWakeUntil = SystemClock.elapsedRealtime() + (if (ms <= 0L) 5_000L else ms + 2_500L)
         try {
             val i = Intent(this, RingActivity::class.java)
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -211,16 +223,19 @@ class RingService : AccessibilityService() {
             startActivity(i)
         } catch (e: Exception) {
         }
-        scheduleRepeat()
+        if (ms > 0L) scheduleRepeat() else cancelRepeat()
     }
 
     /** Same effect as pressing the power button; fingerprint unlock still works. */
     fun lockScreen(): Boolean {
-        return try {
+        selfLock = true
+        val ok = try {
             performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
         } catch (e: Exception) {
             false
         }
+        if (!ok) selfLock = false
+        return ok
     }
 
     private fun repeatIntent(): PendingIntent {

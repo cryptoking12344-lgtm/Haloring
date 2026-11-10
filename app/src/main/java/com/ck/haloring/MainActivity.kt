@@ -35,6 +35,7 @@ class MainActivity : Activity() {
 
     private val demos = ArrayList<Demo>()
     private val chips = ArrayList<TextView>()
+    private val durationChips = ArrayList<TextView>()
     private val swatches = ArrayList<View>()
 
     private val cameraPreview = Runnable { RingService.instance?.preview() }
@@ -396,13 +397,44 @@ class MainActivity : Activity() {
 
     private fun buildMode(): View {
         val card = Ui.card(this)
-        card.addView(Ui.cardTitle(this, "Display mode"))
-        card.addView(Ui.text(
+        card.addView(Ui.cardTitle(this, "How long it shows"))
+
+        val strip = LinearLayout(this)
+        strip.orientation = LinearLayout.HORIZONTAL
+        val current = sp.getInt(Prefs.DURATION, Prefs.DEF_DURATION)
+        durationChips.clear()
+        for (i in Prefs.DURATION_NAMES.indices) {
+            val chip = Ui.text(this, Prefs.DURATION_NAMES[i], 14f, Ui.TEXT, true)
+            chip.setPadding(dp(16f), dp(9f), dp(16f), dp(9f))
+            Ui.styleChip(this, chip, i == current)
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            lp.rightMargin = dp(8f)
+            chip.layoutParams = lp
+            chip.setOnClickListener {
+                sp.edit().putInt(Prefs.DURATION, i).apply()
+                for (j in durationChips.indices) Ui.styleChip(this, durationChips[j], j == i)
+            }
+            durationChips.add(chip)
+            strip.addView(chip)
+        }
+        val scroller = HorizontalScrollView(this)
+        scroller.isHorizontalScrollBarEnabled = false
+        scroller.addView(strip)
+        card.addView(scroller)
+
+        val note = Ui.text(
             this,
-            "Ring only: a black screen shows just the ring for 10 seconds, turns off, " +
-                "then reminds you every 2 minutes for an hour.",
-            14f, Ui.DIM
-        ))
+            "Until seen: the ring keeps animating on a black screen until you swipe the " +
+                "notification away or unlock. Pressing the power button also stops it. " +
+                "This uses the most battery. The timed options turn the screen off after " +
+                "that long, then remind you for 4 seconds every 2 minutes for an hour.",
+            13f, Ui.DIM
+        )
+        note.setPadding(dp(2f), dp(12f), 0, dp(4f))
+        card.addView(note)
+
         card.addView(switchRow(
             "Use Samsung AOD instead", "Experimental. Shows the AOD clock and the ring does not move",
             sp.getBoolean(Prefs.AOD_MODE, false)

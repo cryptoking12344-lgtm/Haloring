@@ -113,7 +113,22 @@ class RingActivity : Activity() {
         handler.removeCallbacks(endRun)
         handler.removeCallbacks(finishRun)
         val ms = intent?.getLongExtra(EXTRA_MS, 8_000L) ?: 8_000L
-        handler.postDelayed(endRun, ms)
+        // 0 or less = keep animating until the notification is swiped or the phone unlocked.
+        if (ms > 0L) handler.postDelayed(endRun, ms)
+    }
+
+    /** Everything was seen or cleared: turn the screen off and close. */
+    fun endNow() {
+        handler.removeCallbacks(endRun)
+        end()
+    }
+
+    /** The unseen set changed: pick up the new colour and icon. */
+    fun refresh() {
+        val geo = RingGeometry.compute(this, Pending.color())
+        ring?.configure(geo.color, geo.radius, geo.stroke, geo.periodMs, geo.style, geo.ripple)
+        ring?.setAnimating(true)
+        placeMissedIcon(geo)
     }
 
     /** Turn the screen off again, then close. */
