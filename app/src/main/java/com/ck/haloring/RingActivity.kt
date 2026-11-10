@@ -48,9 +48,9 @@ class RingActivity : Activity() {
         root.setBackgroundColor(Color.BLACK)
         root.setOnClickListener { finish() }
 
-        val geo = RingGeometry.compute(this)
+        val geo = RingGeometry.compute(this, Pending.color())
         val v = RingView(this)
-        v.configure(geo.color, geo.radius, geo.stroke, geo.periodMs)
+        v.configure(geo.color, geo.radius, geo.stroke, geo.periodMs, geo.style, geo.ripple)
         val lp = FrameLayout.LayoutParams(geo.box, geo.box)
         lp.leftMargin = geo.x
         lp.topMargin = geo.y
@@ -71,6 +71,9 @@ class RingActivity : Activity() {
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
+        // A newer notification arrived: switch to its colour.
+        val geo = RingGeometry.compute(this, Pending.color())
+        ring?.configure(geo.color, geo.radius, geo.stroke, geo.periodMs, geo.style, geo.ripple)
         ring?.setAnimating(true)
         arm(intent)
     }

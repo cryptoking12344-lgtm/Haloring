@@ -4,15 +4,17 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
+import android.widget.Spinner
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
@@ -21,22 +23,18 @@ class MainActivity : Activity() {
 
     private lateinit var status: TextView
 
-    private val colors = intArrayOf(
-        0xFFFFFFFF.toInt(), 0xFF00E5FF.toInt(), 0xFF00E676.toInt(), 0xFFFFC400.toInt(),
-        0xFFFF1744.toInt(), 0xFFFF4081.toInt(), 0xFF7C4DFF.toInt()
-    )
-
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val sp = Prefs.sp(this)
 
         val root = LinearLayout(this)
         root.orientation = LinearLayout.VERTICAL
         root.setPadding(dp(20), dp(20), dp(20), dp(40))
 
         val title = TextView(this)
-        title.text = "Halo Ring (test build 2)"
+        title.text = "Halo Ring 0.3"
         title.textSize = 22f
         root.addView(title)
 
@@ -52,54 +50,86 @@ class MainActivity : Activity() {
             open(Settings.ACTION_ACCESSIBILITY_SETTINGS)
         })
 
-        val hint = TextView(this)
-        hint.text = "Ring-only mode (default): the screen stays black and shows just the ring " +
-            "for 10 seconds, turns off, then reminds you every 2 minutes for an hour. " +
-            "Set Samsung Always On Display back to off so no clock or message appears."
-        hint.setPadding(0, dp(10), 0, dp(10))
-        root.addView(hint)
-
-        val aod = Switch(this)
-        aod.text = "Use Samsung AOD instead (experimental)"
-        aod.isChecked = Prefs.sp(this).getBoolean(Prefs.AOD_MODE, false)
-        aod.setPadding(0, dp(6), 0, dp(10))
-        aod.setOnCheckedChangeListener { _, checked ->
-            Prefs.sp(this).edit().putBoolean(Prefs.AOD_MODE, checked).apply()
-        }
-        root.addView(aod)
-
-        root.addView(button("Preview ring (screen on)") {
+        root.addView(button("Preview ring") {
             val s = RingService.instance
             if (s == null) toast("Turn on step 2 first") else s.preview()
         })
         root.addView(button("Send test notification in 8 seconds") { runTest() })
 
-        root.addView(label("Colour"))
-        val row = LinearLayout(this)
-        row.orientation = LinearLayout.HORIZONTAL
-        for (c in colors) {
-            val swatch = View(this)
-            val bg = GradientDrawable()
-            bg.shape = GradientDrawable.OVAL
-            bg.setColor(c)
-            bg.setStroke(dp(1), 0xFF888888.toInt())
-            swatch.background = bg
-            val lp = LinearLayout.LayoutParams(dp(38), dp(38))
-            lp.setMargins(0, dp(6), dp(10), dp(6))
-            swatch.layoutParams = lp
-            swatch.setOnClickListener {
-                Prefs.sp(this).edit().putInt(Prefs.COLOR, c).apply()
+        // ---- which notifications ----
+        root.addView(header("Which notifications"))
+
+        root.addView(switch("All apps", sp.getBoolean(Prefs.ALL_APPS, true)) { on ->
+            sp.edit().putBoolean(Prefs.ALL_APPS, on).apply()
+        })
+        root.addView(note("Off = only the apps you tick in the list below."))
+        root.addView(button("Choose apps and app colours") {
+            startActivity(Intent(this, AppsActivity::class.java))
+        })
+
+        root.addView(switch("Missed calls", sp.getBoolean(Prefs.MISSED, true)) { on ->
+            sp.edit().putBoolean(Prefs.MISSED, on).apply()
+        })
+        root.addView(button("Missed call colour") {
+            ColorPicker.show(
+                this, "Missed call colour",
+                sp.getInt(Prefs.MISSED_COLOR, Prefs.DEF_MISSED_COLOR), false
+            ) { picked ->
+                if (picked != null) {
+                    sp.edit().putInt(Prefs.MISSED_COLOR, picked).apply()
+                    RingService.instance?.preview(picked)
+                }
+            }
+        })
+
+        // ---- look ----
+        root.addView(header("Ring look"))
+
+        root.addView(label("Animation"))
+        val spinner = Spinner(this)
+        val styles = ArrayAdapter(this, android.R.layout.simple_spinner_item, RingView.STYLE_NAMES)
+        styles.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinner.adapter = styles
+        spinner.setSelection(sp.getInt(Prefs.STYLE, RingView.SWIRL).coerceIn(0, RingView.STYLE_NAMES.size - 1))
+        spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (sp.getInt(Prefs.STYLE, RingView.SWIRL) == position) return
+                sp.edit().putInt(Prefs.STYLE, position).apply()
                 RingService.instance?.preview()
             }
-            row.addView(swatch)
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
-        root.addView(row)
+        root.addView(spinner)
+
+        root.addView(button("Default ring colour") {
+            ColorPicker.show(
+                this, "Default ring colour",
+                sp.getInt(Prefs.COLOR, Prefs.DEF_COLOR), false
+            ) { picked ->
+                if (picked != null) {
+                    sp.edit().putInt(Prefs.COLOR, picked).apply()
+                    RingService.instance?.preview()
+                }
+            }
+        })
+        root.addView(note("Used for every app that has no colour of its own."))
 
         addSlider(root, "Speed", Prefs.SPEED, Prefs.DEF_SPEED)
         addSlider(root, "Ring size", Prefs.SIZE, Prefs.DEF_SIZE)
         addSlider(root, "Thickness", Prefs.THICK, Prefs.DEF_THICK)
         addSlider(root, "Move left / right", Prefs.DX, Prefs.DEF_DX)
         addSlider(root, "Move up / down", Prefs.DY, Prefs.DEF_DY)
+
+        // ---- mode ----
+        root.addView(header("Display mode"))
+        root.addView(note(
+            "Ring-only (default): a black screen shows just the ring for 10 seconds, turns off, " +
+                "then reminds you every 2 minutes for an hour. Keep Samsung Always On Display off."
+        ))
+        root.addView(switch("Use Samsung AOD instead (experimental)", sp.getBoolean(Prefs.AOD_MODE, false)) { on ->
+            sp.edit().putBoolean(Prefs.AOD_MODE, on).apply()
+        })
 
         val scroll = ScrollView(this)
         scroll.addView(root)
@@ -116,7 +146,7 @@ class MainActivity : Activity() {
         val notifOk = listeners.contains(packageName)
         val accOk = RingService.instance != null
         status.text = "Notification access: " + (if (notifOk) "ON" else "OFF") +
-            "\nAccessibility (ring overlay): " + (if (accOk) "ON" else "OFF")
+            "\nAccessibility (ring): " + (if (accOk) "ON" else "OFF")
     }
 
     private fun runTest() {
@@ -156,11 +186,38 @@ class MainActivity : Activity() {
         return b
     }
 
+    private fun switch(text: String, checked: Boolean, onChange: (Boolean) -> Unit): Switch {
+        val s = Switch(this)
+        s.text = text
+        s.textSize = 16f
+        s.isChecked = checked
+        s.setPadding(0, dp(10), 0, dp(10))
+        s.setOnCheckedChangeListener { _, on -> onChange(on) }
+        return s
+    }
+
+    private fun header(text: String): TextView {
+        val t = TextView(this)
+        t.text = text
+        t.textSize = 19f
+        t.setPadding(0, dp(28), 0, dp(6))
+        return t
+    }
+
     private fun label(text: String): TextView {
         val t = TextView(this)
         t.text = text
         t.textSize = 15f
-        t.setPadding(0, dp(18), 0, dp(4))
+        t.setPadding(0, dp(14), 0, dp(4))
+        return t
+    }
+
+    private fun note(text: String): TextView {
+        val t = TextView(this)
+        t.text = text
+        t.textSize = 13f
+        t.alpha = 0.7f
+        t.setPadding(0, 0, 0, dp(8))
         return t
     }
 

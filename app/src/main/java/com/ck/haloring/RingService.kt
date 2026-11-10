@@ -60,6 +60,9 @@ class RingService : AccessibilityService() {
     private var lastNewAt = 0L
     private var selfWakeUntil = 0L
 
+    /** True when something arrived while the screen was lit but locked (e.g. a missed call). */
+    private var deferred = false
+
     private val stopAnim = Runnable {
         view?.setAnimating(false)
         releaseAnimLock()
@@ -74,7 +77,17 @@ class RingService : AccessibilityService() {
                     if (aodMode()) {
                         updateAod(true)
                     } else {
-                        RingActivity.current?.finish()
+                        val act = RingActivity.current
+                        if (act != null) {
+                            act.finish()
+                        } else if (deferred && !Pending.isEmpty()) {
+                            handler.postDelayed({
+                                if (deferred && !Pending.isEmpty() && !pm.isInteractive) {
+                                    lastNewAt = SystemClock.elapsedRealtime()
+                                    burst(FIRST_BURST_MS)
+                                }
+                            }, 1_200L)
+                        }
                     }
                 }
                 Intent.ACTION_SCREEN_ON -> {
@@ -154,9 +167,14 @@ class RingService : AccessibilityService() {
         }
     }
 
+    /** Arrived while the screen was lit but locked: show the ring once the screen goes off. */
+    fun onDeferred() {
+        handler.post { deferred = true }
+    }
+
     fun onRemoved() {
         handler.post {
-            if (Pending.keys.isEmpty()) {
+            if (Pending.isEmpty()) {
                 cancelRepeat()
                 hideOverlay()
                 RingActivity.current?.finish()
@@ -166,14 +184,15 @@ class RingService : AccessibilityService() {
 
     fun onRepeat() {
         handler.post {
-            if (Pending.keys.isEmpty() || aodMode()) return@post
+            if (Pending.isEmpty() || aodMode()) return@post
             if (pm.isInteractive) return@post
             burst(REPEAT_BURST_MS)
         }
     }
 
     private fun seen() {
-        Pending.keys.clear()
+        deferred = false
+        Pending.clear()
         cancelRepeat()
         hideOverlay()
     }
@@ -181,8 +200,9 @@ class RingService : AccessibilityService() {
     // ---- ring-only mode ----
 
     private fun burst(ms: Long) {
-        if (Pending.keys.isEmpty()) return
+        if (Pending.isEmpty()) return
         if (pm.isInteractive && RingActivity.current == null) return
+        deferred = false
         selfWakeUntil = SystemClock.elapsedRealtime() + ms + 2_500L
         try {
             val i = Intent(this, RingActivity::class.java)
@@ -241,26 +261,26 @@ class RingService : AccessibilityService() {
     // ---- AOD mode and preview: overlay window ----
 
     private fun updateAod(restartAnimation: Boolean) {
-        val shouldShow = Pending.keys.isNotEmpty() && !pm.isInteractive
+        val shouldShow = !Pending.isEmpty() && !pm.isInteractive
         if (!shouldShow) {
             hideOverlay()
         } else if (view == null) {
-            showOverlay(false)
+            showOverlay(false, null)
         } else if (restartAnimation) {
             startOverlayAnimation()
         }
     }
 
     /** Shows the ring for a few seconds with the screen on, for adjusting. */
-    fun preview() {
+    fun preview(color: Int? = null) {
         handler.post {
             hideOverlay()
-            showOverlay(true)
+            showOverlay(true, color)
         }
     }
 
-    private fun showOverlay(isPreview: Boolean) {
-        val geo = RingGeometry.compute(this)
+    private fun showOverlay(isPreview: Boolean, previewColor: Int? = null) {
+        val geo = RingGeometry.compute(this, if (isPreview) previewColor else Pending.color())
 
         val lp = WindowManager.LayoutParams(
             geo.box, geo.box,
@@ -280,7 +300,7 @@ class RingService : AccessibilityService() {
         lp.title = "HaloRing"
 
         val v = RingView(this)
-        v.configure(geo.color, geo.radius, geo.stroke, geo.periodMs)
+        v.configure(geo.color, geo.radius, geo.stroke, geo.periodMs, geo.style, geo.ripple)
         try {
             wm.addView(v, lp)
         } catch (e: Exception) {

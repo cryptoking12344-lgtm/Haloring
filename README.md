@@ -20,12 +20,12 @@ workflow run under Artifacts > HaloRing-apk.
 
 ## What this build does
 
-- Ring-only mode (default): for every non-silent notification that arrives while
-  the screen is off, a black screen shows just the animated ring for 10 seconds,
-  then the screen turns off. It reminds for 4 seconds every 2 minutes, for up to
-  an hour, until the phone is woken.
+- Ring-only mode (default): when a notification arrives with the screen off, a
+  black screen shows just the animated ring for 10 seconds, then the screen
+  turns off. It reminds for 4 seconds every 2 minutes, for up to an hour, until
+  the phone is woken.
+- All apps, or only the apps you tick.
+- A colour per app, a default colour, and a separate missed-call colour.
+- Six animations: Swirl, Pulse, Blink, Double spin, Ripple, Rainbow.
+- Speed, size, thickness and position controls.
 - AOD mode (experimental switch): draws the ring on Samsung's Always On Display.
-- Colour, speed, size, thickness and position controls.
-
-Not in this build yet: per-app on/off and colours, more animation styles,
-night hours, black-screen mode.

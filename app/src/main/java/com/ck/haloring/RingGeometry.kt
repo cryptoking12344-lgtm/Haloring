@@ -12,10 +12,12 @@ class RingGeometry(
     val radius: Float,
     val stroke: Float,
     val periodMs: Long,
-    val color: Int
+    val color: Int,
+    val style: Int,
+    val ripple: Float
 ) {
     companion object {
-        fun compute(c: Context): RingGeometry {
+        fun compute(c: Context, colorOverride: Int? = null): RingGeometry {
             val density = c.resources.displayMetrics.density
             fun dp(v: Float): Float = v * density
 
@@ -25,7 +27,8 @@ class RingGeometry(
             val dx = sp.getInt(Prefs.DX, Prefs.DEF_DX)
             val dy = sp.getInt(Prefs.DY, Prefs.DEF_DY)
             val speed = sp.getInt(Prefs.SPEED, Prefs.DEF_SPEED)
-            val color = sp.getInt(Prefs.COLOR, Prefs.DEF_COLOR)
+            val color = colorOverride ?: sp.getInt(Prefs.COLOR, Prefs.DEF_COLOR)
+            val style = sp.getInt(Prefs.STYLE, RingView.SWIRL)
 
             // Find the camera hole from the display cutout; fall back to top centre.
             var cx = c.resources.displayMetrics.widthPixels / 2f
@@ -48,12 +51,13 @@ class RingGeometry(
             var radius = baseRadius + dp((size - 20) / 2f)
             if (radius < dp(4f)) radius = dp(4f)
             val periodMs = 4000L - speed * 35L
-            val box = (2f * (radius + stroke) + dp(4f)).toInt()
+            val ripple = dp(11f)
+            val box = (2f * (radius + stroke + ripple) + dp(4f)).toInt()
 
             return RingGeometry(
                 (cx - box / 2f).toInt(),
                 (cy - box / 2f).toInt(),
-                box, radius, stroke, periodMs, color
+                box, radius, stroke, periodMs, color, style, ripple
             )
         }
     }
