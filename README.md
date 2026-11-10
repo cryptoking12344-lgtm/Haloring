@@ -26,6 +26,8 @@ workflow run under Artifacts > HaloRing-apk.
   the phone is woken.
 - All apps, or only the apps you tick.
 - A colour per app, a default colour, and a separate missed-call colour.
+- Missed calls take priority over other notifications and show a phone icon
+  beside the ring.
 - Six animations: Swirl, Pulse, Blink, Double spin, Ripple, Rainbow.
 - Speed, size, thickness and position controls.
 - AOD mode (experimental switch): draws the ring on Samsung's Always On Display.

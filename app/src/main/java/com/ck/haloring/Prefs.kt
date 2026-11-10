@@ -53,11 +53,13 @@ object Prefs {
 
 /** Notifications that arrived unseen, with the ring colour each one should use. */
 object Pending {
-    private val map = LinkedHashMap<String, Int>()
+    private class Item(val color: Int, val missedCall: Boolean)
 
-    fun add(key: String, color: Int) {
+    private val map = LinkedHashMap<String, Item>()
+
+    fun add(key: String, color: Int, missedCall: Boolean) {
         map.remove(key)
-        map[key] = color
+        map[key] = Item(color, missedCall)
     }
 
     fun remove(key: String): Boolean = map.remove(key) != null
@@ -66,10 +68,20 @@ object Pending {
 
     fun isEmpty(): Boolean = map.isEmpty()
 
-    /** Colour of the most recent unseen notification. */
+    /** True while a missed call is still unseen. */
+    fun hasMissedCall(): Boolean {
+        for (v in map.values) if (v.missedCall) return true
+        return false
+    }
+
+    /** A missed call wins; otherwise the most recent unseen notification. */
     fun color(): Int? {
         var last: Int? = null
-        for (v in map.values) last = v
-        return last
+        var missed: Int? = null
+        for (v in map.values) {
+            last = v.color
+            if (v.missedCall) missed = v.color
+        }
+        return missed ?: last
     }
 }

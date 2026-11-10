@@ -39,11 +39,11 @@ class NotifListener : NotificationListenerService() {
     }
 
     /** The ring colour for this notification, or null when it should not show a ring. */
-    private fun colorFor(sbn: StatusBarNotification): Int? {
+    private fun colorFor(sbn: StatusBarNotification, missedCall: Boolean): Int? {
         val sp = Prefs.sp(this)
         val pkg = sbn.packageName
 
-        if (isMissedCall(sbn)) {
+        if (missedCall) {
             return if (sp.getBoolean(Prefs.MISSED, true)) {
                 sp.getInt(Prefs.MISSED_COLOR, Prefs.DEF_MISSED_COLOR)
             } else {
@@ -72,14 +72,15 @@ class NotifListener : NotificationListenerService() {
             ) return
         }
 
-        val color = colorFor(sbn) ?: return
+        val missedCall = isMissedCall(sbn)
+        val color = colorFor(sbn, missedCall) ?: return
 
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         // Our own black ring screen counts as "screen off".
         val screenOn = pm.isInteractive && RingActivity.current == null
 
         if (!screenOn) {
-            Pending.add(sbn.key, color)
+            Pending.add(sbn.key, color, missedCall)
             RingService.instance?.onNewNotification()
             return
         }
@@ -88,7 +89,7 @@ class NotifListener : NotificationListenerService() {
         // remember it and show the ring once the screen goes off.
         val km = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
         if (km.isKeyguardLocked) {
-            Pending.add(sbn.key, color)
+            Pending.add(sbn.key, color, missedCall)
             RingService.instance?.onDeferred()
         }
         // Otherwise the phone is in use and the notification has been seen.

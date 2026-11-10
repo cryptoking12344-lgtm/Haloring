@@ -11,8 +11,8 @@ android {
         applicationId = "com.ck.haloring"
         minSdk = 30
         targetSdk = 34
-        versionCode = 3
-        versionName = "0.3"
+        versionCode = 4
+        versionName = "0.4"
     }
 
     // Fixed key committed to the repo so every CI build can install over the last one.

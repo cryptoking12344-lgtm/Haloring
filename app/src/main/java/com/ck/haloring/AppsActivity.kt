@@ -49,13 +49,14 @@ class AppsActivity : Activity() {
                 view = LinearLayout(this@AppsActivity)
                 view.orientation = LinearLayout.HORIZONTAL
                 view.gravity = Gravity.CENTER_VERTICAL
-                view.setPadding(dp(16), dp(8), dp(12), dp(8))
+                view.setPadding(dp(20), dp(9), dp(14), dp(9))
 
                 val icon = ImageView(this@AppsActivity)
                 view.addView(icon, LinearLayout.LayoutParams(dp(40), dp(40)))
 
                 val name = TextView(this@AppsActivity)
                 name.textSize = 16f
+                name.setTextColor(Ui.TEXT)
                 name.setPadding(dp(14), 0, dp(8), 0)
                 view.addView(name, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
 
@@ -65,6 +66,10 @@ class AppsActivity : Activity() {
                 view.addView(dot, dotLp)
 
                 val check = CheckBox(this@AppsActivity)
+                check.buttonTintList = android.content.res.ColorStateList(
+                    arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                    intArrayOf(Ui.ACCENT, Ui.DIM)
+                )
                 view.addView(check)
 
                 h = Holder(icon, name, dot, check)
@@ -120,20 +125,32 @@ class AppsActivity : Activity() {
 
         val root = LinearLayout(this)
         root.orientation = LinearLayout.VERTICAL
+        root.setBackgroundColor(Ui.BG)
 
-        val help = TextView(this)
-        help.text = "Tick the apps that should show a ring (used when \"All apps\" is off). " +
-            "Tap an app's circle to give it its own colour; that works in both modes."
-        help.setPadding(dp(16), dp(12), dp(16), dp(4))
+        val title = Ui.text(this, "Apps and colours", 24f, Ui.TEXT, true)
+        title.setPadding(dp(20), dp(18), dp(20), dp(4))
+        root.addView(title)
+
+        val help = Ui.text(
+            this,
+            "Tick the apps that should show a ring (used when \"All apps\" is off). " +
+                "Tap an app's circle to give it its own colour; that works in both modes.",
+            13f, Ui.DIM
+        )
+        help.setPadding(dp(20), 0, dp(20), dp(12))
         root.addView(help)
 
         val search = EditText(this)
         search.hint = "Search apps"
         search.setSingleLine(true)
+        search.setTextColor(Ui.TEXT)
+        search.setHintTextColor(Ui.DIM)
+        search.background = Ui.shape(Ui.SURFACE, dp(100).toFloat())
+        search.setPadding(dp(20), dp(12), dp(20), dp(12))
         val searchLp = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         )
-        searchLp.setMargins(dp(12), 0, dp(12), 0)
+        searchLp.setMargins(dp(16), 0, dp(16), dp(8))
         root.addView(search, searchLp)
         search.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -145,6 +162,7 @@ class AppsActivity : Activity() {
         })
 
         val list = ListView(this)
+        list.divider = null
         list.adapter = adapter
         root.addView(
             list,
