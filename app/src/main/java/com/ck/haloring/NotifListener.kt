@@ -28,16 +28,17 @@ class NotifListener : NotificationListenerService() {
 
         // Only notifications that arrive while the screen is off count.
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
-        if (pm.isInteractive) return
+        // (Our own black ring screen counts as "off".)
+        if (pm.isInteractive && RingActivity.current == null) return
 
         Pending.keys.add(sbn.key)
-        RingService.instance?.update(true)
+        RingService.instance?.onNewNotification()
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
         if (sbn == null) return
         if (Pending.keys.remove(sbn.key)) {
-            RingService.instance?.update(false)
+            RingService.instance?.onRemoved()
         }
     }
 }

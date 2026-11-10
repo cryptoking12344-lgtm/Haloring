@@ -13,6 +13,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 
@@ -35,7 +36,7 @@ class MainActivity : Activity() {
         root.setPadding(dp(20), dp(20), dp(20), dp(40))
 
         val title = TextView(this)
-        title.text = "Halo Ring (test build)"
+        title.text = "Halo Ring (test build 2)"
         title.textSize = 22f
         root.addView(title)
 
@@ -52,10 +53,20 @@ class MainActivity : Activity() {
         })
 
         val hint = TextView(this)
-        hint.text = "3. In Samsung Settings > Lock screen and AOD > Always On Display, " +
-            "set When to show to \"For new notifications\"."
+        hint.text = "Ring-only mode (default): the screen stays black and shows just the ring " +
+            "for 10 seconds, turns off, then reminds you every 2 minutes for an hour. " +
+            "Set Samsung Always On Display back to off so no clock or message appears."
         hint.setPadding(0, dp(10), 0, dp(10))
         root.addView(hint)
+
+        val aod = Switch(this)
+        aod.text = "Use Samsung AOD instead (experimental)"
+        aod.isChecked = Prefs.sp(this).getBoolean(Prefs.AOD_MODE, false)
+        aod.setPadding(0, dp(6), 0, dp(10))
+        aod.setOnCheckedChangeListener { _, checked ->
+            Prefs.sp(this).edit().putBoolean(Prefs.AOD_MODE, checked).apply()
+        }
+        root.addView(aod)
 
         root.addView(button("Preview ring (screen on)") {
             val s = RingService.instance

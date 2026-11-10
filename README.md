@@ -15,15 +15,16 @@ workflow run under Artifacts > HaloRing-apk.
    can be switched on.
 2. In the app, tap "Allow notification access" and switch Halo Ring on.
 3. Tap "Turn on Halo Ring in Accessibility" > Installed apps > Halo Ring > on.
-4. Samsung Settings > Lock screen and AOD > Always On Display > When to show >
-   "For new notifications".
-5. Tap "Preview ring" and use the sliders until the ring sits on the camera hole.
-6. Tap "Send test notification in 8 seconds" and turn the screen off.
+4. Tap "Preview ring" and use the sliders until the ring sits on the camera hole.
+5. Tap "Send test notification in 8 seconds" and turn the screen off.
 
 ## What this build does
 
-- Ring for every non-silent notification that arrives while the screen is off.
-- Animates for 20 seconds, then holds a static ring until you wake the phone.
+- Ring-only mode (default): for every non-silent notification that arrives while
+  the screen is off, a black screen shows just the animated ring for 10 seconds,
+  then the screen turns off. It reminds for 4 seconds every 2 minutes, for up to
+  an hour, until the phone is woken.
+- AOD mode (experimental switch): draws the ring on Samsung's Always On Display.
 - Colour, speed, size, thickness and position controls.
 
 Not in this build yet: per-app on/off and colours, more animation styles,

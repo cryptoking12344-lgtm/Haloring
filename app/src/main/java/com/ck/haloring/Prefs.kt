@@ -11,6 +11,7 @@ object Prefs {
     const val DY = "dy"
     const val SPEED = "speed"
     const val COLOR = "color"
+    const val AOD_MODE = "aod_mode"
 
     const val DEF_SIZE = 28
     const val DEF_THICK = 6
